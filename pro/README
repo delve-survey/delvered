@@ -1,0 +1,91 @@
+DELVE PHOTRED processing:
+-break it up into exposure-level processing and bricks/coadds
+-make delvered_exposure and delvered_brick scripts that run:
+  delvered_expoosure
+      WCS
+      DAOPHOT
+      MATCH
+      APCOR
+      new program to derive exposure-level zero-points using skymapper
+      ASTROM
+      CALIB
+      COMBINE
+      DERED
+      SAVE
+     maybe make a night-level summary file at the end
+
+  delvered_brick
+      a program to set up symlinks (relative) to all of the exposure-level stuff in the brick directory
+      MATCH
+      ALLFRAME
+      ASTROM
+      CALIB
+      COMBINE  only one TILE per brick so nothing to do
+      DERED
+      SAVE
+-need a program at beginning of delvered_brick that figures out which chip images overlap which bricks (using matchall_sph.pro and then polygonoverlap)
+  whenever you rerun it save the older version of the file in bak/XXX.bak1XXXXX.x
+-modify allframe so that it will keep the chi/sharp/prob from the individual frames (maybe in an array) and the mean values
+   have a keywords to set that and use the original by default so it's backwards compatible
+-modify photred to use RELATIVE paths in the input/output files so it doesn't matter if I chang the directory structure
+  (always relative to the directory that photred.setup is in the "setupdir").
+-need to fix MATCH to be able to handle the tiling format
+  but when I used the bricks, I don't want photred_match.pro to tile it further.  just match up all the chips
+  in the brick directory (which I know will overlap).  that's a case that photred_match.pro doesn't handle yet (no sub-groups)
+  test daomatch_tile.pro.  I think it's basically done.
+-need to fix COMBINE to handle the new tiling format where there can be multiple chips from the exposure
+   having different columns.  Before each column was a separate exposure.
+-need a develred_prep.pro that is similar to smashred_prep, download Gaia DR2 and Skymapper
+   create photred.setup so they are the same
+   Can we copy files directly from the mass store?  How to know where all the files are that we want.
+    Maybe do it after I stage the files.  Actually, if we are using the mass store then we don't need to "copy" then, just run the PREP
+    script on those files.
+-calibration, at exposure level only use exposure-level zero-points, or maybe use DES/Eddie's chip-level terms
+   use 201?????.trans that gives information on each exposure, make sure I can specify an exposure-level transformation
+   exposure (all chips).
+-use DECaLS brick layout, aobut 740 in the delve-mc region
+-how to handle overlap of the bricks, seems like we need another program to crossmatch them and combine the information.
+-try to make PHOTRED faster and not save too many extra file
+-check how much disk space we'll need
+-can FAKERED handle
+-for exposures run photred at the nightly level, for bricks maybe have them grouped in groups of 10 with a subdirectory for each
+-update wcsfit.pro to put Gaia ra/dec at right epoch
+
+-we'll want to download existing DES and maybe Mackey data and at do the exposure-level processing right away, make symlinks to SMASH island fields
+   want might to redo some of the steps to use the new way of doing things
+
+-directory structure
+
+  exposures/
+     201XXXXX/
+       chipXX/
+       201XXXXX.apcor
+       photred.setup
+       201XXXXX.trans       
+       FIELD.fits.gz
+       FIELD_summary.fits
+       201XXXXX_summary.fits
+  bricks/
+     delvered_summary.fits    summary of all exposure and chip-level summary information
+     bricks.fits              information on each brick including what chips overlap
+     100/
+       photred.setup
+       XXX/
+         chipXX/
+	    symlinks to images, .psf, etc. in exposure directory
+	 XXX.fits.gz
+	 XXX_summary.fits.gz
+
+-isfitsfile.pro ??,  could try dum=headfits(file,exten=0,errmsg=errmsg) and see if there is an error message
+It looks like headfits.pro calls this to check if the 
+  unit = FXPOSIT( filename, exten, errmsg = errmsg, $
+                   /READONLY,compress = compress, SILENT=silent,/headeronly)
+  if unit eq -1 then there was an error
+I think it just checks to see if the first 8 characters are 'SIMPLE', but it handles gzipped and fpack files properly
+Need to close the unit after there was no error.
+fxposit can't handle fits.fz files that, it does if you set /fpack
+you can use OPENR, UNIT, /COMPRESS to write in gzipped format
+I found is_fits.pro online http://www.heliodocs.com/xdoc/xdoc_print.php?file=$SSW/gen/idl/fits/is_fits.pro
+Not sure if it handles gzipped and fpack files the way I'd like it to, it also does some extra stuff with extensions.
+  it can't handle fits.fz files without the right extension
+Make my own version.

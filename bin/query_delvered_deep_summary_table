@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+#
+# Script for querying the delvered exposures table
+
+import os
+import sys
+import shutil
+import time
+from argparse import ArgumentParser
+from dlnpyutils import utils as dln
+from delvered import delvered_db as delvedb
+from astropy.table import Table
+import numpy as np
+
+# Main command-line program
+if __name__ == "__main__":
+    parser = ArgumentParser(description='Query the delvered exposures table.')
+    parser.add_argument('ra', type=str, nargs=1, help='Right Ascension')
+    parser.add_argument('dec', type=str, nargs=1, help='Declination')
+    parser.add_argument('outfile', type=str, nargs=1, help='Output filename')
+    parser.add_argument('--lim', type=float, default=0.2, help='Search size (+/- deg)')
+    args = parser.parse_args()
+
+    ra = float(dln.first_el(args.ra))
+    dec = float(dln.first_el(args.dec))
+    lim = float(dln.first_el(args.lim))
+    ralim = lim/np.cos(np.deg2rad(dec))
+    outfile = dln.first_el(args.outfile)
+
+    print('Querying the DELVERED Exposures/Chips table')
+    print('RA = '+str(ra))
+    print('DEC = '+str(dec))
+    print('LIM = '+str(lim)+' deg')
+
+    # If the database exists already, back it up
+    expdir = '/net/dl2/dnidever/delve/deep/exposures/'
+    dbfile = '/net/dl2/dnidever/delve/deep/bricks/db/delvered_summary.db'
+    if not os.path.exists(dbfile):
+        print(dbfile+' NOT FOUND')
+        sys.exit()
+
+    # Run the code
+    rar = [ra-ralim,ra+ralim]
+    decr = [dec-lim,dec+lim]
+    print(rar)
+    print(decr)
+    cat = delvedb.getdatadb(dbfile,rar=rar,decr=decr,table='chip')
+    ncat = dln.size(cat)
+    print(str(ncat)+' matches found')
+    if dln.size(cat)==0:
+        dln.writelines(outfile,'')
+        sys.exit()
+    # Save the output
+    print('Writing results to '+outfile)
+    if os.path.exists(outfile): os.remove(outfile)
+    Table(cat).write(outfile)
